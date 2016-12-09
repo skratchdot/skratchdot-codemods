@@ -4,6 +4,7 @@
 [![Build Status](https://travis-ci.org/skratchdot/skratchdot-codemods.png?branch=master)](https://travis-ci.org/skratchdot/skratchdot-codemods)
 [![Code Climate](https://codeclimate.com/github/skratchdot/skratchdot-codemods.png)](https://codeclimate.com/github/skratchdot/skratchdot-codemods)
 [![Coverage Status](https://coveralls.io/repos/skratchdot/skratchdot-codemods/badge.svg?branch=master&service=github)](https://coveralls.io/github/skratchdot/skratchdot-codemods?branch=master)
+
 [![Dependency Status](https://david-dm.org/skratchdot/skratchdot-codemods.svg)](https://david-dm.org/skratchdot/skratchdot-codemods)
 [![devDependency Status](https://david-dm.org/skratchdot/skratchdot-codemods/dev-status.svg)](https://david-dm.org/skratchdot/skratchdot-codemods#info=devDependencies)
 
