@@ -1,5 +1,5 @@
-'use strict';
 /* eslint-env jest */
+'use strict';
 
 jest.autoMockOff();
 
