@@ -1,0 +1,51 @@
+{
+  "name": "skratchdot-codemods",
+  "version": "1.0.0",
+  "description": "A collection of utility codemods",
+  "main": "index.js",
+  "scripts": {
+    "cover": "jest --coverage",
+    "coveralls": "cat coverage/lcov.info | coveralls --verbose",
+    "lint": "eslint --no-ignore .eslintrc.js ./transforms/*.js **/__tests__/**/*.js",
+    "test": "jest"
+  },
+  "author": "skratchdot",
+  "license": "MIT",
+  "homepage": "https://github.com/skratchdot/skratchdot-codemods",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/skratchdot/skratchdot-codemods.git"
+  },
+  "bugs": {
+    "url": "https://github.com/skratchdot/skratchdot-codemods/issues"
+  },
+  "devDependencies": {
+    "amd-to-commonjs-codemod": "^1.0.0",
+    "coveralls": "^2.11.15",
+    "eslint": "^3.11.1",
+    "jest": "^17.0.3",
+    "jscodeshift": "^0.3.30"
+  },
+  "keywords": [
+    "codemod",
+    "amd",
+    "cjs",
+    "commonjs",
+    "require",
+    "import",
+    "transform",
+    "jscodeshift"
+  ],
+  "jest": {
+    "verbose": true,
+    "collectCoverageFrom": [
+      "transforms/*.js",
+      "index.js"
+    ],
+    "coverageReporters": [
+      "text-summary",
+      "html",
+      "lcovonly"
+    ]
+  }
+}
