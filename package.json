@@ -1,6 +1,6 @@
 {
   "name": "skratchdot-codemods",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A collection of utility codemods",
   "main": "index.js",
   "scripts": {
@@ -20,7 +20,6 @@
     "url": "https://github.com/skratchdot/skratchdot-codemods/issues"
   },
   "devDependencies": {
-    "amd-to-commonjs-codemod": "^1.0.0",
     "coveralls": "^2.11.15",
     "eslint": "^3.11.1",
     "jest": "^17.0.3",
