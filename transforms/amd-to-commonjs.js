@@ -52,16 +52,15 @@ module.exports = function (file, api) {
         const firstNode = j(result[0]).get().value.program.body[0];
         firstNode.comments = [];
         comments.forEach((comment) => {
-          let newComment;
-          if (comment.type === 'CommentLine') {
-            newComment = j.commentLine(
-              comment.value, comment.leading, comment.trailing);
-          } else if (comment.type === 'CommentBlock') {
-            newComment = j.commentBlock(
-              comment.value, comment.leading, comment.trailing);
-          }
-          if (newComment) {
-            firstNode.comments.push(newComment);
+          switch (comment.type) {
+          case 'CommentLine':
+            firstNode.comments.push(j.commentLine(
+              comment.value, comment.leading, comment.trailing));
+            break;
+          case 'CommentBlock':
+            firstNode.comments.push(j.commentBlock(
+              comment.value, comment.leading, comment.trailing));
+            break;
           }
         });
         result[0] = firstNode;
