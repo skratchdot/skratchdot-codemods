@@ -19,6 +19,9 @@
   "bugs": {
     "url": "https://github.com/skratchdot/skratchdot-codemods/issues"
   },
+  "dependencies": {
+    "require-all": "^2.0.0"
+  },
   "devDependencies": {
     "coveralls": "^2.11.15",
     "eslint": "^3.11.1",
@@ -46,8 +49,5 @@
       "html",
       "lcovonly"
     ]
-  },
-  "dependencies": {
-    "require-all": "^2.0.0"
   }
 }
