@@ -20,6 +20,10 @@
     "url": "https://github.com/skratchdot/skratchdot-codemods/issues"
   },
   "dependencies": {
+    "babel-core": "^6.20.0",
+    "babel-preset-latest": "^6.16.0",
+    "babel-preset-react": "^6.16.0",
+    "babel-preset-stage-0": "^6.16.0",
     "require-all": "^2.0.0"
   },
   "devDependencies": {

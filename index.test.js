@@ -7,7 +7,8 @@ describe('index.js', () => {
     const expectedTransforms = [
       'amd-to-commonjs',
       'global-strict',
-      'no-strict'
+      'no-strict',
+      'to-jest'
     ];
     expectedTransforms.forEach((transformName) => {
       expect(transforms[transformName]).toBeInstanceOf(Function);
