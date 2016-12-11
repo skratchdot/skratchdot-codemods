@@ -10,11 +10,13 @@ const getRequiredLibs = (j, ast) => {
     });
   ast
     .find(j.CallExpression)
-    .filter((path) =>
-      path.value.callee.type === 'Identifier' &&
-      path.value.callee.name === 'require' &&
-      path.value.arguments.length === 1 &&
-      path.value.arguments[0].type === 'Literal')
+    .filter((p) => p.value &&
+      p.value.callee &&
+      p.value.callee.type === 'Identifier' &&
+      p.value.callee.name === 'require' &&
+      p.value.arguments &&
+      p.value.arguments.length === 1 &&
+      p.value.arguments[0].type === 'Literal')
     .forEach((path) => {
       libs.push(path.value.arguments[0].value);
     });
@@ -22,7 +24,7 @@ const getRequiredLibs = (j, ast) => {
 };
 
 const isFunctionType = (ast) => {
-  return [
+  return ast && ast.type && [
     'ArrowFunctionExpression',
     'FunctionExpression'
   ].indexOf(ast.type) >= 0;
@@ -32,11 +34,13 @@ const getTestType = (ast, parent) => {
   let type = 'unknown';
   if (isFunctionType(ast)) {
     type = 'function';
-  } else if (ast.type === 'Identifier' && ast.name && parent) {
-    const dec = parent
+  } else if (ast && ast.type === 'Identifier' && ast.name && parent) {
+    const nodes = parent
       .getVariableDeclarators(() => ast.name)
-      .nodes()[0];
-    type = getTestType(dec.init);
+      .nodes();
+    if (nodes.length) {
+      type = getTestType(nodes[0].init);
+    }
   }
   return type;
 };
@@ -92,7 +96,10 @@ const getTestInfo = (j, ast) => {
   // exports.foo = 42;
   ast
     .find(j.AssignmentExpression)
-    .filter((p) => p.value.left.object.name === 'exports')
+    .filter((p) => p.value &&
+      p.value.left &&
+      p.value.left.object &&
+      p.value.left.object.name === 'exports')
     .forEach((path) => {
       testInfo.push({
         name: path.value.left.property.name,
@@ -104,9 +111,14 @@ const getTestInfo = (j, ast) => {
   // module.exports.foo = 42;
   ast
     .find(j.AssignmentExpression)
-    .filter((p) => p.value.left.object.type === 'MemberExpression' &&
-           p.value.left.object.object.name === 'module' &&
-           p.value.left.object.property.name === 'exports')
+    .filter((p) => p.value &&
+      p.value.left &&
+      p.value.left.object &&
+      p.value.left.object.type === 'MemberExpression' &&
+      p.value.left.object.object &&
+      p.value.left.object.object.name === 'module' &&
+      p.value.left.object.property &&
+      p.value.left.object.property.name === 'exports')
     .forEach((path) => {
       testInfo.push({
         name: path.value.left.property.name,
@@ -118,8 +130,13 @@ const getTestInfo = (j, ast) => {
   // module.exports = { a: 1, b: 2 };
   ast
     .find(j.AssignmentExpression)
-    .filter((p) => p.value.left.object.name === 'module' &&
+    .filter((p) => p.value &&
+      p.value.left &&
+      p.value.left.object &&
+      p.value.left.object.name === 'module' &&
+      p.value.left.property &&
       p.value.left.property.name === 'exports' &&
+      p.value.right &&
       p.value.right.type === 'ObjectExpression')
     .forEach((path) => {
       path.value.right.properties.forEach((n) => {
