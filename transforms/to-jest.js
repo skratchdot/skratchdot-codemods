@@ -1,65 +1,175 @@
 'use strict';
-const babel = require('babel-core');
 const path = require('path');
-const vm = require('vm');
 
-const transform = (file) => {
+const getRequiredLibs = (j, ast) => {
+  const libs = [];
+  ast
+    .find(j.ImportDeclaration)
+    .forEach((path) => {
+      libs.push(path.value.source.value);
+    });
+  ast
+    .find(j.CallExpression)
+    .filter((path) =>
+      path.value.callee.type === 'Identifier' &&
+      path.value.callee.name === 'require' &&
+      path.value.arguments.length === 1 &&
+      path.value.arguments[0].type === 'Literal')
+    .forEach((path) => {
+      libs.push(path.value.arguments[0].value);
+    });
+  return libs;
+};
+
+const isFunctionType = (ast) => {
+  return [
+    'ArrowFunctionExpression',
+    'FunctionExpression'
+  ].indexOf(ast.type) >= 0;
+};
+
+const getTestType = (ast, parent) => {
+  let type = 'unknown';
+  if (isFunctionType(ast)) {
+    type = 'function';
+  } else if (ast.type === 'Identifier' && ast.name && parent) {
+    const dec = parent
+      .getVariableDeclarators(() => ast.name)
+      .nodes()[0];
+    type = getTestType(dec.init);
+  }
+  return type;
+};
+
+const getTestInfo = (j, ast) => {
+  const testInfo = [];
+
+  // ExportDefaultDeclaration
+  ast
+    .find(j.ExportDefaultDeclaration)
+    .forEach((path) => {
+      testInfo.push({
+        name: 'default',
+        type: getTestType(path.value.declaration, j(path.parent))
+      });
+    });
+
+  // ExportNamedDeclaration>VariableDeclaration
+  ast
+    .find(j.ExportNamedDeclaration)
+    .find(j.VariableDeclaration)
+    .forEach((path) => {
+      const dec = path.value.declarations[0];
+      testInfo.push({
+        name: dec.id.name,
+        type: getTestType(dec.init)
+      });
+    });
+
+  // ExportNamedDeclaration>FunctionDeclaration
+  ast
+    .find(j.ExportNamedDeclaration)
+    .find(j.FunctionDeclaration)
+    .forEach((path) => {
+      testInfo.push({
+        name: path.value.id.name,
+        type: 'function'
+      });
+    });
+
+  // ExportNamedDeclaration>ExportSpecifier
+  ast
+    .find(j.ExportNamedDeclaration)
+    .find(j.ExportSpecifier)
+    .forEach((path) => {
+      testInfo.push({
+        name: path.value.exported.name,
+        type: getTestType(path.value.local, j(path.parent))
+      });
+    });
+
+  // AssignmentExpression
+  // exports.foo = 42;
+  ast
+    .find(j.AssignmentExpression)
+    .filter((p) => p.value.left.object.name === 'exports')
+    .forEach((path) => {
+      testInfo.push({
+        name: path.value.left.property.name,
+        type: getTestType(path.value.right, j(path.parent))
+      });
+    });
+
+  // AssignmentExpression
+  // module.exports.foo = 42;
+  ast
+    .find(j.AssignmentExpression)
+    .filter((p) => p.value.left.object.type === 'MemberExpression' &&
+           p.value.left.object.object.name === 'module' &&
+           p.value.left.object.property.name === 'exports')
+    .forEach((path) => {
+      testInfo.push({
+        name: path.value.left.property.name,
+        type: getTestType(path.value.right, j(path.parent))
+      });
+    });
+
+  // AssignmentExpression
+  // module.exports = { a: 1, b: 2 };
+  ast
+    .find(j.AssignmentExpression)
+    .filter((p) => p.value.left.object.name === 'module' &&
+      p.value.left.property.name === 'exports' &&
+      p.value.right.type === 'ObjectExpression')
+    .forEach((path) => {
+      path.value.right.properties.forEach((n) => {
+        testInfo.push({
+          name: n.key.name,
+          type: getTestType(n.value, j(path.parent))
+        });
+      });
+    });
+
+  return testInfo;
+};
+
+const transform = (file, api) => {
+  const j = api.jscodeshift;
+  const ast = j(file.source);
   const filename = path.basename(file.path);
-  const dirname = path.dirname(file.path);
   const description = `${filename} tests`;
-  const transformed = babel.transform(`${file.source}
-  __vm__.exports = Object.assign({}, exports, module.exports);`, {
-    presets: ['latest', 'stage-0', 'react']
-  });
-  // see: https://nodejs.org/api/modules.html#modules_the_module_wrapper
-  const sandbox = {};
-  sandbox.__vm__ = {
-    ids: [],
-    exports: {}
-  };
-  sandbox.module = {
-    children: [],
-    exports: {},
-    filename: filename,
-    id: '',
-    loaded: false,
-    parent: {},
-    require: function (id) {
-      sandbox.__vm__.ids.push(id);
-    }
-  };
-  sandbox.exports = sandbox.module.exports;
-  sandbox.require = sandbox.module.require;
-  sandbox.__filename = filename;
-  sandbox.__dirname = dirname;
-  vm.runInNewContext(transformed.code, sandbox, {
-    filename: filename
-  });
-  const vmExports = sandbox.__vm__.exports;
-  const required = sandbox.__vm__.ids.map((id) => {
+
+  // setup required libs
+  const required = getRequiredLibs(j, ast).map((id) => {
     if (id.indexOf('.') >= 0 || id.indexOf('/') >= 0) {
       id = path.normalize(`../${id}`);
     }
     return `jest.mock('${id}');`;
   }).sort();
-  const tests = Object.keys(vmExports).sort().map((testName) => {
-    const isFunction = typeof vmExports[testName] === 'function';
-    const testSuffix = isFunction ? '()' : '';
-    const description = `handles the ${testName}${testSuffix} snapshot`;
-    let testBody = `    expect(lib[libKey]${testSuffix}).toMatchSnapshot();`;
-    return [
-      `  it('${description}', () => {`,
-      `    const lib = require('${path.normalize(`../${filename}`)}');`,
-      `    const libKey = '${testName}';`,
-      testBody,
-      '  });'
-    ].join('\n');
-  });
 
+  // add comment
   if (required.length) {
     required.unshift('// required modules');
     required.push('');
   }
+
+  // setup tests
+  const tests = getTestInfo(j, ast)
+    .sort((a, b) => a.name < b.name ? -1 : 1)
+    .map((testInfo) => {
+      const testName = testInfo.name;
+      const isFunction = testInfo.type === 'function';
+      const testSuffix = isFunction ? '()' : '';
+      const description = `handles the ${testName}${testSuffix} snapshot`;
+      let testBody = `    expect(lib[libKey]${testSuffix}).toMatchSnapshot();`;
+      return [
+        `  it('${description}', () => {`,
+        `    const lib = require('${path.normalize(`../${filename}`)}');`,
+        `    const libKey = '${testName}';`,
+        testBody,
+        '  });'
+      ].join('\n');
+    });
 
   // build test
   return []
