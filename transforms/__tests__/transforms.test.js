@@ -2,6 +2,7 @@
 'use strict';
 
 jest.autoMockOff();
+jest.mock('mkdirp');
 
 // libs
 const defineTest = require('jscodeshift/dist/testUtils').defineTest;

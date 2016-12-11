@@ -8,6 +8,7 @@ describe('index.js', () => {
       'amd-to-commonjs',
       'global-strict',
       'no-strict',
+      'to-jest-write',
       'to-jest'
     ];
     expectedTransforms.forEach((transformName) => {
