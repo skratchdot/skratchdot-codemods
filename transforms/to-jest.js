@@ -1,6 +1,13 @@
 'use strict';
 const path = require('path');
 
+const sortByName = (a, b) => a.name < b.name ? -1 : 1;
+
+const getSafeProp = (id) => {
+  const isSafe = id.replace(/[a-zA-Z0-9\_]/gi, '').length === 0;
+  return isSafe ? `.${id}` : `['${id}']`;
+};
+
 const getRequiredLibs = (j, ast) => {
   const libs = [];
   ast
@@ -58,28 +65,38 @@ const getTestInfo = (j, ast) => {
       });
     });
 
-  // ExportNamedDeclaration>VariableDeclaration
+  // ExportNamedDeclaration -> VariableDeclaration
   ast
     .find(j.ExportNamedDeclaration)
-    .find(j.VariableDeclaration)
+    .filter((p) => p.value &&
+      p.value.declaration &&
+      p.value.declaration.type === 'VariableDeclaration' &&
+      p.value.declaration.declarations &&
+      p.value.declaration.declarations.length &&
+      p.value.declaration.declarations[0] &&
+      p.value.declaration.declarations[0].id)
     .forEach((path) => {
-      const dec = path.value.declarations[0];
+      const dec = path.value.declaration.declarations[0].id;
       testInfo.push({
-        name: dec.id.name,
-        type: getTestType(dec.init)
+        name: dec.name,
+        type: getTestType(dec, j(path.parent))
       });
     });
 
-  // ExportNamedDeclaration>FunctionDeclaration
+  // ExportNamedDeclaration -> FunctionDeclaration
   ast
     .find(j.ExportNamedDeclaration)
-    .find(j.FunctionDeclaration)
+    .filter((p) => p.value &&
+      p.value.declaration &&
+      p.value.declaration.type === 'FunctionDeclaration')
     .forEach((path) => {
+      const dec = path.value.declaration;
       testInfo.push({
-        name: path.value.id.name,
+        name: dec.id.name,
         type: 'function'
       });
     });
+
 
   // ExportNamedDeclaration>ExportSpecifier
   ast
@@ -157,33 +174,39 @@ const transform = (file, api) => {
   const description = `${filename} tests`;
 
   // setup required libs
-  const required = getRequiredLibs(j, ast).map((id) => {
+  const requiredLibs = getRequiredLibs(j, ast).map((id) => {
     if (id.indexOf('.') >= 0 || id.indexOf('/') >= 0) {
       id = path.normalize(`../${id}`);
     }
-    return `jest.mock('${id}');`;
-  }).sort();
+    return {
+      name: path.parse(id).name,
+      path: id
+    };
+  }).sort(sortByName);
+  const jestMocks = requiredLibs.map((lib) => `jest.mock('${lib.path}');`);
+  const requireJestMocks = requiredLibs.map((lib) => {
+    return `    mocks${getSafeProp(lib.name)} = require('${lib.path}');`;
+  });
 
   // add comment
-  if (required.length) {
-    required.unshift('// required modules');
-    required.push('');
+  if (jestMocks.length) {
+    jestMocks.unshift('// required modules');
+    jestMocks.push('');
   }
 
   // setup tests
   const tests = getTestInfo(j, ast)
-    .sort((a, b) => a.name < b.name ? -1 : 1)
+    .sort(sortByName)
     .map((testInfo) => {
       const testName = testInfo.name;
       const isFunction = testInfo.type === 'function';
       const testSuffix = isFunction ? '()' : '';
       const description = `handles the ${testName}${testSuffix} snapshot`;
-      let testBody = `    expect(lib[libKey]${testSuffix}).toMatchSnapshot();`;
+      const safe = `${getSafeProp(testName)}${testSuffix}`;
       return [
         `  it('${description}', () => {`,
         `    const lib = require('${path.normalize(`../${filename}`)}');`,
-        `    const libKey = '${testName}';`,
-        testBody,
+        `    expect(lib${safe}).toMatchSnapshot();`,
         '  });'
       ].join('\n');
     });
@@ -192,9 +215,13 @@ const transform = (file, api) => {
   return []
     .concat('/* eslint-env jest */')
     .concat('\'use strict\';')
-    .concat('')
-    .concat(required)
+    .concat('\n// store required mocks here\nlet mocks = {};\n')
+    .concat(jestMocks)
     .concat(`describe('${description}', () => {`)
+    .concat('  beforeEach(() => {')
+    .concat('    mocks = {};')
+    .concat(requireJestMocks)
+    .concat('  });')
     .concat(tests)
     .concat('});')
     .join('\n');
