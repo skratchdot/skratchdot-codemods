@@ -20,13 +20,13 @@
     "url": "https://github.com/skratchdot/skratchdot-codemods/issues"
   },
   "dependencies": {
-    "require-all": "^2.0.0"
+    "require-all": "^3.0.0"
   },
   "devDependencies": {
-    "coveralls": "^2.11.15",
-    "eslint": "^3.11.1",
-    "jest": "^17.0.3",
-    "jscodeshift": "^0.3.30"
+    "coveralls": "^3.0.2",
+    "eslint": "^5.7.0",
+    "jest": "^23.6.0",
+    "jscodeshift": "^0.5.1"
   },
   "keywords": [
     "codemod",

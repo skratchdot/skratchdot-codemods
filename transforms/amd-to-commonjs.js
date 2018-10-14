@@ -72,13 +72,13 @@ module.exports = function (file, api) {
           switch (comment.type) {
           case 'CommentLine':
             firstNode.comments.push(
-                j.commentLine(comment.value, comment.leading, comment.trailing)
-              );
+              j.commentLine(comment.value, comment.leading, comment.trailing)
+            );
             break;
           case 'CommentBlock':
             firstNode.comments.push(
-                j.commentBlock(comment.value, comment.leading, comment.trailing)
-              );
+              j.commentBlock(comment.value, comment.leading, comment.trailing)
+            );
             break;
           }
         });

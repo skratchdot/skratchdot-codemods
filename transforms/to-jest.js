@@ -4,7 +4,7 @@ const path = require('path');
 const sortByName = (a, b) => a.name < b.name ? -1 : 1;
 
 const getSafeProp = (id) => {
-  const isSafe = id.replace(/[a-zA-Z0-9\_]/gi, '').length === 0;
+  const isSafe = id.replace(/[a-zA-Z0-9_]/gi, '').length === 0;
   return isSafe ? `.${id}` : `['${id}']`;
 };
 
