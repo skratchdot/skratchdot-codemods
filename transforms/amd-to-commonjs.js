@@ -18,35 +18,52 @@ const buildRequire = (j, v, r) => {
   return code;
 };
 
+const checkPathForValidNodeExpression = (path, argNumber) => [
+  'FunctionExpression', 'ArrowFunctionExpression'
+].indexOf(path.node.expression.arguments[argNumber].type) >= 0;
+
 module.exports = function (file, api) {
   const j = api.jscodeshift;
   return j(file.source)
     .find(j.ExpressionStatement)
-    .filter((path) =>
-            path.parentPath.node.type === 'Program' &&
-            path.node.expression.type === 'CallExpression' &&
-            path.node.expression.callee.type === 'Identifier' &&
-            path.node.expression.callee.name === 'define' &&
-            path.node.expression.arguments.length === 2 &&
-            path.node.expression.arguments[0].type === 'ArrayExpression' &&
-            [
-              'FunctionExpression', 'ArrowFunctionExpression'
-            ].indexOf(path.node.expression.arguments[1].type) >= 0)
+    .filter(
+      (path) =>
+        path.parentPath.node.type === 'Program' &&
+        path.node.expression.type === 'CallExpression' &&
+        path.node.expression.callee.type === 'Identifier' &&
+        path.node.expression.callee.name === 'define'
+    )
     .replaceWith((path) => {
-      const arrayExpression = path.node.expression.arguments[0];
-      const functionExpression = path.node.expression.arguments[1];
+      let arrayExpression;
+      let functionExpression;
+      if (
+        path.node.expression.arguments.length === 2 &&
+        path.node.expression.arguments[0].type === 'ArrayExpression' &&
+        checkPathForValidNodeExpression(path, 1)
+      ) {
+        arrayExpression = path.node.expression.arguments[0];
+        functionExpression = path.node.expression.arguments[1];
+      } else if (checkPathForValidNodeExpression(path, 0)) {
+        functionExpression = path.node.expression.arguments[0];
+      } else {
+        // do nothing. return early
+        return path.node;
+      }
+
       const comments = path.node.comments;
       const result = [];
       const statementSize = Math.max(
         functionExpression.params.length,
-        arrayExpression.elements.length
+        arrayExpression ? arrayExpression.elements.length : 0
       );
       for (let i = 0; i < statementSize; i++) {
-        result.push(buildRequire(
-          j,
-          functionExpression.params[i],
-          arrayExpression.elements[i]
-        ));
+        result.push(
+          buildRequire(
+            j,
+            functionExpression.params[i],
+            arrayExpression.elements[i]
+          )
+        );
       }
       if (result.length && comments && comments.length) {
         const firstNode = j(result[0]).get().value.program.body[0];
@@ -54,12 +71,14 @@ module.exports = function (file, api) {
         comments.forEach((comment) => {
           switch (comment.type) {
           case 'CommentLine':
-            firstNode.comments.push(j.commentLine(
-              comment.value, comment.leading, comment.trailing));
+            firstNode.comments.push(
+                j.commentLine(comment.value, comment.leading, comment.trailing)
+              );
             break;
           case 'CommentBlock':
-            firstNode.comments.push(j.commentBlock(
-              comment.value, comment.leading, comment.trailing));
+            firstNode.comments.push(
+                j.commentBlock(comment.value, comment.leading, comment.trailing)
+              );
             break;
           }
         });
@@ -68,9 +87,11 @@ module.exports = function (file, api) {
       const leading = [];
       let isLeading = true;
       functionExpression.body.body.forEach((item) => {
-        if (isLeading &&
+        if (
+          isLeading &&
           item.type === 'ExpressionStatement' &&
-          item.expression.type === 'Literal') {
+          item.expression.type === 'Literal'
+        ) {
           leading.push(item);
         } else if (item.type === 'ReturnStatement') {
           const returnStatement = j(item)
