@@ -19,8 +19,8 @@ A collection of utility codemods that I find useful.
 ## Getting Started
 
 ```bash
-yarn install jscodeshift
-yarn install skratchdot-codemods
+npm install jscodeshift
+npm install skratchdot-codemods
 jscodeshift -t ./node_modules/skratchdot-codemods/transforms/amd-to-commonjs.js /path/to/files/*.js
 jscodeshift -t ./node_modules/skratchdot-codemods/transforms/global-strict.js /path/to/files/*.js
 ```
